@@ -42,6 +42,7 @@ try:
     if (speedtest):
         print ("astroquery:",datetime.now()-starttime,"s")
     import numpy as np                          # Required for numerical processing
+    import numpy.ma as ma                       # Required for dealing with Vizier masked arrays
     import numpy.lib.recfunctions as rfn        # [For consistency with Visualiser]
     if (speedtest):
         print ("numpy:",datetime.now()-starttime,"s")
@@ -1311,7 +1312,14 @@ def get_vizier_single(cmdparams,sourcedata):
                 if (verbosity>70):
                     print ("CATALOGUE = ",catalogue,"; RA,DEC =",ra,dec)
                     print ("Vizier data:",vizier_data)
-            if (len(vizier_data)>0): # If any data exists
+            dataexists=0
+            try:
+                if (len(vizier_data)>0): # If any data exists
+                    dataexists=1
+            except TypeError:
+                if (verbosity>=99):
+                    print ("No/invalid data returned.")
+            if (dataexists): # If any data exists
                 svokeys=filtdata[filtdata['catname']==catalogue]['svoname']
                 # Get identifier in catalgoue
                 idcol=catdata[catdata['catname']==catalogue]['idcol']
@@ -3174,6 +3182,7 @@ def adopt_distance(ancillary):
     defaultdist=float(pyssedsetupdata[pyssedsetupdata[:,0]=="DefaultDist",1][0])
     wtlimit=float(pyssedsetupdata[pyssedsetupdata[:,0]=="AncWeightingLimit",1][0])
     sigmalimit=float(pyssedsetupdata[pyssedsetupdata[:,0]=="AncSigmaLimit",1][0])
+    minancerror=float(pyssedsetupdata[pyssedsetupdata[:,0]=="MinAncError",1][0])
     
     # List parallaxes & distances
     # Do this in two stages to avoid numpy/python issues about bitwise/elementwise logic
@@ -3188,6 +3197,8 @@ def adopt_distance(ancillary):
     plxerr=np.nan_to_num(plxerr,nan=0)
     plxerr=plxerr[plx!=0]
     plx=plx[plx!=0]
+    plx=plx[plxerr+1.!=plxerr]
+    plxerr=plxerr[plxerr+1.!=plxerr]
 
     # Convert to distance (with error floor)
     minerr=float(pyssedsetupdata[pyssedsetupdata[:,0]=="MinAncError",1][0])
@@ -3216,6 +3227,15 @@ def adopt_distance(ancillary):
     foo=ancillary[(ancillary['parameter']=="Distance")]
     d=foo[(foo['mask']==True) & (foo['value']!=0.)]['value']
     derr=foo[(foo['mask']==True) & (foo['value']!=0.)]['err']
+    # Sort out nans
+    d[d!=d] = 0
+    derr[derr!=derr] = 0
+    d=np.nan_to_num(d,nan=0)
+    derr=np.nan_to_num(derr,nan=0)
+    derr=derr[d!=0]
+    d=d[d!=0]
+    d=d[derr+1.!=derr]
+    derr=derr[derr+1.!=derr]
     if (verbosity >= 80):
         print (ancillary)
         print ("Plx:",plx,plxerr)
@@ -3498,8 +3518,8 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
         # Get priors
         priors=get_priors(ancillary)
         if ((modelstartteff>priors[0]['max']) or (modelstartteff<priors[0]['min'])):
-            print (priors[0]['max'])
-            print (priors[0]['min'])
+            if (verbosity>40):
+                print ("Adopting prior temperature range:",priors[0]['min'],"to",priors[0]['max'],"K")
             modelstartteff=(priors[0]['max']+priors[0]['min'])/2.
 
         # Pre-compute log(g) if required
@@ -5421,7 +5441,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
 
     # Main routine
     errmsg=""
-    version="1.1.dev.20240829"
+    version="1.1.dev.20240912"
     try:
         startmain = datetime.now() # time object
         globaltime=startmain
@@ -6004,9 +6024,25 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
                     outparams=str(source)+sep+str(teff)+sep+str(lum)+sep+str(rad)+sep+str(dist)+sep+str(chisq)+"\n"
                     added = pd.DataFrame(data=[[source, str(teff), str(lum), str(rad), str(dist), str(chisq)]], columns=["Object", "Teff", "Lum", "Rad", "Dist", "Chi^2"])
                     hrd_results = pd.concat([hrd_results, added])
+                    #with open(outparamfile, "a") as f: # Add error trapping 20240903
+                    #    f.write(outparams)
                     with open(outparamfile, "a") as f:
-                        f.write(outparams)
-                    #outanc=str(source)+sep+str(np.squeeze(ancillary[(ancillary['parameter']=='RA') & (ancillary['mask']==True)]['value']))+sep+str(np.squeeze(ancillary[(ancillary['parameter']=='RA') & (ancillary['mask']==True)]['err']))+sep+str(np.squeeze(ancillary[(ancillary['parameter']=='Dec') & (ancillary['mask']==True)]['value']))+sep+str(np.squeeze(ancillary[(ancillary['parameter']=='Dec') & (ancillary['mask']==True)]['err']))
+                        attempts = 0
+                        while attempts < maxattempts:
+                            try:
+                                f.write(outparams)
+                                break
+                            except:
+                                attempts += 1
+                                print_warn ("Could not write to output parameter file (attempt "+str(attempts)+" of "+str(maxattempts)+") [main PySSED loop]")
+                                try: # wait for server to clear
+                                    time.sleep(attempts**2)
+                                except: # if time not installed don't wait
+                                    pass
+                        if (attempts==maxattempts):
+                            print_fail ("Could not write to output parameter file")
+                            print_fail ("Filename =",outparamfile)
+                            raise Exception("Could not write to output parameter file")
                     outanc=str(source)+sep
                     for param in ancillary_params[1:]:
                         if (len(ancillary[(ancillary['parameter']==param) & (ancillary['mask']==True)]['value'])>0):
@@ -6014,8 +6050,25 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
                         else:
                             outanc=outanc+sep+"--"+sep+"--"
                     outanc=outanc+"\n"
+                    #with open(outancfile, "a") as f:
+                    #    f.write(outanc)
                     with open(outancfile, "a") as f:
-                        f.write(outanc)
+                        attempts = 0
+                        while attempts < maxattempts:
+                            try:
+                                f.write(outanc)
+                                break
+                            except:
+                                attempts += 1
+                                print_warn ("Could not write to output ancillary file (attempt "+str(attempts)+" of "+str(maxattempts)+") [main PySSED loop]")
+                                try: # wait for server to clear
+                                    time.sleep(attempts**2)
+                                except: # if time not installed don't wait
+                                    pass
+                        if (attempts==maxattempts):
+                            print_fail ("Could not write to output ancillary file")
+                            print_fail ("Filename =",outancfile)
+                            raise Exception("Could not write to output ancillary file")
                     if (verbosity > 20):
                         print (source,"fitted with Teff=",teff,"K, R=",rad,"Rsun, L=",lum,"Lsun")
                     if (verbosity > 40):
