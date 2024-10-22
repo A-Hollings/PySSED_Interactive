@@ -1708,13 +1708,16 @@ def get_mag_flux(testdata,fdata,zpt,reasons):
                 mag=-2.5*np.log10(flux/zpt)
                 magerr=np.where(ferr>0,2.5*np.log10(1+ferr/flux),0.)
         except TypeError:
-            mag=-2.5*np.log10(flux/zpt)
-            magerr=np.where(ferr>0,2.5*np.log10(1+ferr/flux),0.)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore",message="invalid value encountered in log10")
+                mag=-2.5*np.log10(flux/zpt)
+                magerr=np.where(ferr>0,2.5*np.log10(1+ferr/flux),0.)
 
     # Adjust zero point
     if (zptcorr!=0):
         mag-=zptcorr
         flux/=10**(-zptcorr/2.5)
+        ferr/=10**(-zptcorr/2.5)
 
     if (verbosity>98):
         try:
@@ -2948,10 +2951,12 @@ def compile_areaseds(seds,weights,photdata,ancs,ancweights,ancdata,ra1=0.,ra2=0.
                     #print (data.dtype.names)
                     mag,magerr,flux,ferr,mask=get_mag_flux(data,fdata,zpt,reject_reasons)
                     # If the fractional error in the flux is sufficiently small
-                    if ((flux>0) & (flux==flux+0)): # check for NaN
-                        if (ferr/flux<fdata['maxperr']/100.):
-                            sed[nfsuccess]=(catalogue,catid,(newra-sourcera)*3600.,(newdec-sourcedec)*3600.,(ra-sourcera)*3600.,(dec-sourcedec)*3600.,svokey,fdata['filtname'],wavel,dw,mag,magerr,flux,ferr,0,0,0,mask)
-                            nfsuccess+=1
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore",message="invalid value encountered in true_divide")
+                        if ((flux>0) & (flux==flux+0)): # check for NaN
+                            if (ferr/flux<fdata['maxperr']/100.):
+                                sed[nfsuccess]=(catalogue,catid,(newra-sourcera)*3600.,(newdec-sourcedec)*3600.,(ra-sourcera)*3600.,(dec-sourcedec)*3600.,svokey,fdata['filtname'],wavel,dw,mag,magerr,flux,ferr,0,0,0,mask)
+                                nfsuccess+=1
         # Remove zero entries
         sed=sed[sed['flux']>0.]
         # If there is no error in flux, use default error
@@ -2961,7 +2966,7 @@ def compile_areaseds(seds,weights,photdata,ancs,ancweights,ancdata,ra1=0.,ra2=0.
         sed[:]['mask']=np.where(sed[:]['wavel']>maxlambda,False,sed[:]['mask'])
         if (nfsuccess>1):
             nssuccess+=1
-            compiledseds[i]=sed
+        compiledseds[i]=sed
             
         # Get ancillary information
         if (verbosity>=94):
@@ -3044,7 +3049,7 @@ def compile_areaseds(seds,weights,photdata,ancs,ancweights,ancdata,ra1=0.,ra2=0.
         ancillary=ancillary[ancillary['parameter']!=0]
         if (nfsuccess>=0):
             nssuccess+=1
-            compiledanc[i]=ancillary
+        compiledanc[i]=ancillary
     
     # Remove zero entires and save output
     # Not done any more - now at end of main loop so that modelling data can be added and appended
@@ -3180,8 +3185,6 @@ def adopt_distance(ancillary):
     usenodist=int(pyssedsetupdata[pyssedsetupdata[:,0]=="UseStarsWithNoDist",1][0])
     maxdisterr=float(pyssedsetupdata[pyssedsetupdata[:,0]=="MaxDistError",1][0])
     defaultdist=float(pyssedsetupdata[pyssedsetupdata[:,0]=="DefaultDist",1][0])
-    wtlimit=float(pyssedsetupdata[pyssedsetupdata[:,0]=="AncWeightingLimit",1][0])
-    sigmalimit=float(pyssedsetupdata[pyssedsetupdata[:,0]=="AncSigmaLimit",1][0])
     minancerror=float(pyssedsetupdata[pyssedsetupdata[:,0]=="MinAncError",1][0])
     
     # List parallaxes & distances
@@ -3220,9 +3223,6 @@ def adopt_distance(ancillary):
             plxdist=[]
             plxdisterr=[]
     
-    
-        
-
     # Extract distances
     foo=ancillary[(ancillary['parameter']=="Distance")]
     d=foo[(foo['mask']==True) & (foo['value']!=0.)]['value']
@@ -3262,17 +3262,7 @@ def adopt_distance(ancillary):
         dd=np.append(d,plxdist,axis=0)
         dderr=np.append(derr,plxdisterr,axis=0)
         # Check for limits
-        ferr=dd/dderr
-        ferr/=np.max(ferr)
-        dd=dd[ferr>wtlimit]
-        dderr=dderr[ferr>wtlimit]
-        minerr=np.min(dderr)
-        medd=np.median(dd)
-        sigma=(dd-medd)/minerr
-        dd=dd[sigma<sigmalimit]
-        dderr=dderr[sigma<sigmalimit]
-        if (verbosity>=98):
-            print ("dd,dderr,ferr:",dd,dderr,ferr)
+        dd,dderr,ferr=clip_distance(dd,dderr)
         try:
             dist=np.average(dd,weights=1./dderr**2)
         except TypeError:
@@ -3288,15 +3278,7 @@ def adopt_distance(ancillary):
     elif (len(d)>0):
         try:
             if (len(d)>1):
-                ferr=d/derr
-                ferr/=np.max(ferr)
-                d=d[ferr>wtlimit]
-                derr=derr[ferr>wtlimit]
-                minerr=np.min(derr)
-                medd=np.median(d)
-                sigma=(d-medd)/minerr
-                d=d[sigma<sigmalimit]
-                derr=derr[sigma<sigmalimit]
+                d,derr,ferr=clip_distance(d,derr)
             dist=np.average(d,weights=1./derr**2)
         except TypeError:
             print_fail ("TypeError in adopt_distance (distance)")
@@ -3309,15 +3291,7 @@ def adopt_distance(ancillary):
     elif (len(plxdist)>0):
         try:
             if (len(plxdist)>1):
-                ferr=plxdist/plxdisterr
-                ferr/=np.max(ferr)
-                plxdist=plxdist[ferr>wtlimit]
-                plxdisterr=plxdisterr[ferr>wtlimit]
-                minerr=np.min(plxdisterr)
-                medd=np.median(plxdist)
-                sigma=(plxdist-medd)/minerr
-                plxdist=plxdist[sigma<sigmalimit]
-                plxdisterr=plxdisterr[sigma<sigmalimit]
+                plxdist,plxdisterr,ferr=clip_distance(plxdist,plxdisterr)
             dist=np.average(plxdist,weights=1./plxdisterr**2)
         except TypeError:
             print_fail ("TypeError in adopt_distance (parallax)")
@@ -3343,6 +3317,35 @@ def adopt_distance(ancillary):
         print ("Adopted distance:",dist,"pc")
 
     return dist
+
+def clip_distance(dd,dderr):
+    wtlimit=float(pyssedsetupdata[pyssedsetupdata[:,0]=="AncWeightingLimit",1][0])
+    sigmalimit=float(pyssedsetupdata[pyssedsetupdata[:,0]=="AncSigmaLimit",1][0])
+    ferr=dd/dderr
+    ferr/=np.max(ferr)
+    dd=dd[ferr>wtlimit]
+    dderr=dderr[ferr>wtlimit]
+    minerr=np.min(dderr)
+    medd=np.median(dd)
+    # Sigma clip
+    sigma=np.abs((dd-medd)/minerr)
+    try:
+        if (len(dd[sigma<sigmalimit])>0):
+            dd=dd[sigma<sigmalimit]
+            dderr=dderr[sigma<sigmalimit]
+            if (verbosity>=99):
+                print ("Sigma clipping activated")
+        else: # if no points left after sigma clipping, choose most-accurate distance
+            if (verbosity>=99):
+                print ("Sigma clipping failed, taking most accurate value")
+            dd=dd[ferr==1]
+            dderr=dderr[ferr==1]
+    except:
+        pass # should not occur, but coded in case dd is an integer, i.e. one value has been selected        
+    if (verbosity>=98):
+        print ("dd,dderr,ferr,wtlimit,sigmalimit:",dd,dderr,ferr,wtlimit,sigmalimit)
+        
+    return dd,dderr,ferr
 
     
 # =============================================================================
@@ -3706,7 +3709,7 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
                         sed=deredden2(sed,avdata,ebv,teff,logg,feh,alphafe)
                     elif (avcorrtype>2):
                         teff=optimize.minimize(chisq_model_with_extinction,modelstartteff,args=(np.array(["simple",logg,feh,alphafe]),priors,params,testvalues,testsed,avdata,ebv,logg,feh,alphafe),method='Nelder-Mead',tol=10)['x'][0]
-                        sed=deredden2(sed,avdata,ebv,teff,logg,feh,alphafe)
+                        deredden2(sed,avdata,ebv,teff,logg,feh,alphafe)
                     else:
                         testteff=optimize.minimize(chisq_model,modelstartteff,args=(testfreq,testflux,testferr,np.array(["simple",logg,feh,alphafe]),priors,params,testvalues),method='Nelder-Mead',tol=0.25)['x'][0]
 
@@ -5441,7 +5444,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
 
     # Main routine
     errmsg=""
-    version="1.1.dev.20240912"
+    version="1.1.dev.20241021"
     try:
         startmain = datetime.now() # time object
         globaltime=startmain
@@ -5525,6 +5528,11 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
             error=1
             return
 
+    if (usepreviousrun>0):
+        print_fail ("The UsePreviousRun flag is not supported in this version. Sorry!")
+        error=1
+        return
+
     if (usepreviousrun>0 and searchtype=="list"):
         print_fail ("The UsePreviousRun flag is not supported when a list of targets is specified.")
         print_fail ("Execution has stopped to prevent mismatch between files and data.")
@@ -5533,6 +5541,23 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
 
     if (speedtest):
         print ("Parse/initiate command line options:",datetime.now()-startmain,"s")
+
+    # ------------------------------------------------------------
+    # Write headers to output.dat (so there's at least something there if it crashes)
+    mastercat=np.array2string(pyssedsetupdata[pyssedsetupdata[:,0]=="PrimaryCatRef",1])[2:-2]
+    outmasterfile=np.array2string(pyssedsetupdata[pyssedsetupdata[:,0]=="MasterOutputFile",1])[2:-2]
+    savemasteroutput=int(pyssedsetupdata[pyssedsetupdata[:,0]=="SaveMasterOutput",1][0])
+    if (usepreviousrun<5):
+        if (outappend==0):
+            if (savemasteroutput>0):
+                # Write the master output file headers
+                with open(outmasterfile, "w") as f:
+                    f.write("#PySSED output version"+version+"\n")                
+                    try:
+                        f.write("#Created"+datetime.now()+"\n") # time object
+                    except:
+                        pass
+                    f.write("#Input: "+' '.join(str(x) for x in cmdargs)+"\n")
 
     # ------------------------------------------------------------
     # Get stellar atmosphere model data and extinction corrections at start of run, if needed
@@ -5552,7 +5577,6 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
 
     # -----------------------------------------------
     # Do all the special stuff for area searches here
-    mastercat=np.array2string(pyssedsetupdata[pyssedsetupdata[:,0]=="PrimaryCatRef",1])[2:-2]
     if (searchtype=="area"):
         # For area searches, only have to download one set of data, so we do that here.
         # For list searches, we'll defer that to the main loop.
@@ -5629,8 +5653,6 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
     # Restart or append output
     object_counter=0
     object_offset=0
-    savemasteroutput=int(pyssedsetupdata[pyssedsetupdata[:,0]=="SaveMasterOutput",1][0])
-    outmasterfile=np.array2string(pyssedsetupdata[pyssedsetupdata[:,0]=="MasterOutputFile",1])[2:-2]
     outparamfile=np.array2string(pyssedsetupdata[pyssedsetupdata[:,0]=="OutputParamFile",1])[2:-2]
     outancfile=np.array2string(pyssedsetupdata[pyssedsetupdata[:,0]=="OutputAncFile",1])[2:-2]
     ancillary_queries=get_ancillary_list()
@@ -5715,7 +5737,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
                 masteroutputdw=np.concatenate((np.array(["#Width[AA]"],dtype="str"),np.full(len(masterlist)*2,"-"),np.full(len(fittedlist)*2,"-"),np.full(len(adoptedlist)*2,"-"),np.full(len(statlist),"-"),np.full(len(catlist),"-"),filtdw,filtdw,filtdw,filtdw,np.full(len(ancillarylist)*3,"-")))
                 masteroutputalamb=np.concatenate((np.array(["#Alambda"],dtype="str"),np.full(len(masterlist)*2,"-"),np.full(len(fittedlist)*2,"-"),np.full(len(adoptedlist)*2,"-"),np.full(len(statlist),"-"),np.full(len(catlist),"-"),filtalamb,filtalamb,filtalamb,filtalamb,np.full(len(ancillarylist)*3,"-")))
                 # Write the master output file headers
-                with open(outmasterfile, "w") as f:
+                with open(outmasterfile, "a") as f:
                     f.write("#PySSED output version"+version+"\n")                
                     try:
                         f.write("#Created"+datetime.now()+"\n") # time object
@@ -5889,7 +5911,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
                     print_warn (mastercat+" source ID: "+str(source)+" failed due to bad or no data in SED")
                 if (verbosity>=70):
                     print (sed)
-                    pass
+                pass
             except UnboundLocalError:
                 print_fail ("ERROR! SED not defined.")
                 if (usepreviousrun > 0):
@@ -5909,7 +5931,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
                     print_warn (mastercat+" source ID: "+str(source)+" failed due to bad or no ancillary data")
                 if (verbosity>=70):
                     print (ancillary)
-                    pass
+                pass
             except UnboundLocalError:
                 print_fail ("ERROR! Ancillary data not defined.")
                 if (usepreviousrun > 0):

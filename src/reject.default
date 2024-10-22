@@ -80,9 +80,16 @@ WISE	W4mag	W4mag	-1	>	6.5	Mask	Same	Same
 VHS	Jap3	Jap3	-1	<	13.2	Mask	Same	Same
 VHS	Hap3	Hap3	-1	<	13.0	Mask	Same	Same
 VHS	Ksap3	Ksap3	-1	<	12.8	Mask	Same	Same
-VVV	Jmag3	Jmag3	-1	<	13.2	Mask	Same	Same
-VVV	Hmag3	Hmag3	-1	<	13.0	Mask	Same	Same
-VVV	Ksmag3	Ksmag3	-1	<	12.8	Mask	Same	Same
+VVV	_tab1_30	_tab1_30	-1	<	12.0	Mask	Same	Same
+VVV	_tab1_48	_tab1_48	-1	<	12.0	Mask	Same	Same
+VVV	_tab1_66	_tab1_66	-1	<	13.2	Mask	Same	Same
+VVV	_tab1_84	_tab1_84	-1	<	13.0	Mask	Same	Same
+VVV	_tab1_102	_tab1_102	-1	<	12.8	Mask	Same	Same
+VVV	_tab1_120	_tab1_120	-1	<	12.0	Mask	Same	Same
+VVV	_tab1_138	_tab1_138	-1	<	12.0	Mask	Same	Same
+VVV	_tab1_156	_tab1_156	-1	<	13.2	Mask	Same	Same
+VVV	_tab1_174	_tab1_174	-1	<	13.0	Mask	Same	Same
+VVV	_tab1_192	_tab1_192	-1	<	12.8	Mask	Same	Same
 
 # Remove zero (null) values from Morel
 Morel78	U	U	-1	=	--	Remove	Same	Same
