@@ -2091,8 +2091,8 @@ def merge_sed(sed):
         if (len(sed[(sed['svoname']==filt) & (sed['mask']==True)])>1):
             if (verbosity>80):
                 print ("Select first:",filt)
-            removeable=sed[(sed['svoname']==filt) & (sed['mask']==True)]
-            removeable=removeable[1:]
+            removable=sed[(sed['svoname']==filt) & (sed['mask']==True)]
+            removable=removable[1:]
             for i in np.arange(len(sed)):
                 for j in np.arange(len(removable)):
                     if ((sed[i]['catname']==removable[j]['catname']) & (sed[i]['objid']==removable[j]['objid']) & (sed[i]['svoname']==removable[j]['svoname']) & (sed[i]['mag']==removable[j]['mag'])):
@@ -2121,12 +2121,12 @@ def merge_ancillary(ancillary):
                 print (ancillary[(ancillary['parameter']==param) & (ancillary['mask']==True)])
             # Apply priority criteria
             maxpriority=np.min(ancillary[(ancillary['parameter']==param) & (ancillary['mask']==True)]['priority'])
-            removeable=ancillary[(ancillary['parameter']==param) & (ancillary['priority'].astype(int)>maxpriority)]
+            removable=ancillary[(ancillary['parameter']==param) & (ancillary['priority'].astype(int)>maxpriority)]
             if (verbosity>80):
                 print ("Removing",param,"with priority >",maxpriority)
-                print (removeable)
+                print (removable)
             for i in np.arange(len(ancillary)):
-                if (ancillary[i] in removeable):
+                if (ancillary[i] in removable):
                     ancillary[i]['mask']=False
         # If there are still multiple measurements of the same parameter...
         if (len(ancillary[(ancillary['parameter']==param) & (ancillary['mask']==True)])>1):
@@ -2195,10 +2195,10 @@ def merge_ancillary(ancillary):
                 print ("Round 3:",param)
                 print (ancillary[(ancillary['parameter']==param) & (ancillary['mask']==True)])
             # Apply priority criteria
-            removeable=ancillary[(ancillary['parameter']==param) & (ancillary['mask']==True)]
-            removeable=removeable[1:]
+            removable=ancillary[(ancillary['parameter']==param) & (ancillary['mask']==True)]
+            removable=removable[1:]
             for i in np.arange(len(ancillary)):
-                if (ancillary[i] in removeable):
+                if (ancillary[i] in removable):
                     ancillary[i]['mask']=False
 
     return ancillary
