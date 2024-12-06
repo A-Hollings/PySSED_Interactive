@@ -2091,12 +2091,14 @@ def merge_sed(sed):
         if (len(sed[(sed['svoname']==filt) & (sed['mask']==True)])>1):
             if (verbosity>80):
                 print ("Select first:",filt)
-                print (sed[(sed['svoname']==filt) & (sed['mask']==True)])
             removeable=sed[(sed['svoname']==filt) & (sed['mask']==True)]
             removeable=removeable[1:]
             for i in np.arange(len(sed)):
-                if (sed[i] in removeable):
-                    sed[i]['mask']=False
+                for j in np.arange(len(removable)):
+                    if ((sed[i]['catname']==removable[j]['catname']) & (sed[i]['objid']==removable[j]['objid']) & (sed[i]['svoname']==removable[j]['svoname']) & (sed[i]['mag']==removable[j]['mag'])):
+                        sed[i]['mask']=False
+            if (verbosity>80):
+                print (sed[(sed['svoname']==filt) & (sed['mask']==True)])
 
     return sed
 
@@ -2953,6 +2955,7 @@ def compile_areaseds(seds,weights,photdata,ancs,ancweights,ancdata,ra1=0.,ra2=0.
                     # If the fractional error in the flux is sufficiently small
                     with warnings.catch_warnings():
                         warnings.filterwarnings("ignore",message="invalid value encountered in true_divide")
+                        warnings.filterwarnings("ignore",message="invalid value encountered in divide")
                         if ((flux>0) & (flux==flux+0)): # check for NaN
                             if (ferr/flux<fdata['maxperr']/100.):
                                 sed[nfsuccess]=(catalogue,catid,(newra-sourcera)*3600.,(newdec-sourcedec)*3600.,(ra-sourcera)*3600.,(dec-sourcedec)*3600.,svokey,fdata['filtname'],wavel,dw,mag,magerr,flux,ferr,0,0,0,mask)
@@ -3573,7 +3576,7 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
         # Extract parameters and flux values for observed filters
         oparams=np.stack((modeldata['teff'],modeldata['logg'],modeldata['metal'],modeldata['alpha']),axis=1)
         try:
-            ovalues=np.array(modeldata[sed[sed['mask']>0]['svoname']].tolist())
+            ovalues=np.array(modeldata[sed[sed['mask']>0]['svoname']])
         except KeyError:
             print_fail ("KeyError when extracting stellar models!")
             print ("This can occur if additional filters have been introduced that have not been convolved with the models.")
@@ -3671,6 +3674,7 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
         testteff=teff
         testmodel=model
         testflux=flux
+        outvalues=np.copy(modeldata[femask])
         for i in np.arange(maxoutliers):
             # Find the factor by which photometry is outlying
             with warnings.catch_warnings():
@@ -3682,7 +3686,9 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
                 sedidx=np.nonzero(outsed['mask'])[0][np.argmax(outratio)]
                 if (verbosity>70):
                     print ("Outlier",i+1,":",outsed[sedidx]['catname'],outsed[sedidx]['filter'],", outlier by factor =",np.max(outratio))
-                testsed=np.delete(np.copy(outsed),sedidx) # Another temporary copy, masking the current outlier
+                #testsed=np.delete(np.copy(outsed),sedidx)
+                testsed=np.copy(outsed) # Another temporary copy, masking the current outlier
+                testsed['mask'][sedidx]=0 # <<<
                 # Rederive extinction
                 if (avcorrtype>1):
                     testsed=deredden2(testsed,avdata,ebv,teff,logg,feh,alphafe)
@@ -3696,8 +3702,7 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
                 testferr=testsed[testsed['mask']>0]['derederr']
                 testferr=np.nan_to_num(testferr, nan=1.e6)
                 testfreq=299792458./testwavel
-                testvalues=np.array(modeldata[testsed[testsed['mask']>0]['svoname']].tolist())
-                testvalues=testvalues[femask]
+                testvalues=np.array(modeldata[testsed[testsed['mask']>0]['svoname']][femask])
                 # Refit the data
                 with warnings.catch_warnings():
                     warnings.filterwarnings("ignore",message="invalid value encountered in subtract")
@@ -3785,8 +3790,9 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
             if (verbosity>80):
                 print ("Revised log g =",logg,"[",np.min(modeldata['logg']),np.max(modeldata['logg']),"]")
 
-        values=np.array(modeldata[sed[sed['mask']>0]['svoname']].tolist())
-        values=values[femask]
+#        values=np.array(modeldata[sed[sed['mask']>0]['svoname']])
+#        values=values[femask]
+        values=np.array(modeldata[sed[sed['mask']>0]['svoname']][femask])
 
         # Perform final refining fit
         if (fitebv>0):
@@ -3813,12 +3819,12 @@ def sed_fit_simple(sed,ancillary,modeldata,avdata,ebv):
         ferr=np.nan_to_num(ferr, nan=1.e6)
         freq=299792458./wavel
         if (len(np.unique(sed['svoname']))==len(sed['svoname'])):
-            values=np.array(modeldata[sed['svoname']][femask].tolist())
+            values=np.array(modeldata[sed['svoname']][femask])
         else:
             val=np.zeros((len(params[:,0]),len(sed)),dtype=float)
             for i in np.arange(len(sed['svoname'])):
-                val[:,i]=modeldata[sed['svoname'][i]][femask].tolist()
-#            values=val.tolist()
+                val[:,i]=modeldata[sed['svoname'][i]][femask]
+#            values=val
             values=val
         model,fratio,chisq=compute_model(teff,freq,flux,ferr,np.array(["simple",logg,feh,alphafe]),priors,params,values)
         
@@ -3878,7 +3884,8 @@ def deredden2(sed,avdata,ebv,teff,logg,feh,afe):
     oparams=np.stack((modeldata['teff'],modeldata['logg'],modeldata['metal'],modeldata['alpha']),axis=1)
     try:
         # Values aren't actually used in this instance - only to get the selector of which grid points are needed
-        ovalues=np.array(modeldata[sed[sed['mask']>0]['svoname']].tolist())
+        #ovalues=np.array(modeldata[sed[sed['mask']>0]['svoname']])
+        dummy_ovalues=np.zeros((len(modeldata),len(sed[sed['mask']>0])))
     except ValueError:
         print_fail ("ValueError when extracting extinction models!")
         raise
@@ -3917,7 +3924,7 @@ def deredden2(sed,avdata,ebv,teff,logg,feh,afe):
     if (verbosity>70):
         print ("Dereddening using parameters:",teff,logg,feh,afe)
 
-    foo,bar,selector=model_subset(oparams,ovalues,teff,logg,feh,afe)
+    foo,bar,selector=model_subset(oparams,dummy_ovalues,teff,logg,feh,afe)
     avsubset=avdata[:,selector]
     
     modeldata=avsubset[0]
@@ -3925,7 +3932,7 @@ def deredden2(sed,avdata,ebv,teff,logg,feh,afe):
     interpav=np.empty((len(avsubset),len(sed[sed['mask']>0]['svoname'])),dtype=float)
     for i in np.arange(len(avsubset)):
         modeldata=avsubset[i]
-        values=np.array(modeldata[sed[sed['mask']>0]['svoname']].tolist())
+        values=np.array(modeldata[sed[sed['mask']>0]['svoname']])
         interpav[i]=model_interp(params,values,teff,logg,feh,afe)
 
     #print (interpav)
@@ -4019,9 +4026,9 @@ def model_interp(cutparams,cutvalues,teff,logg,feh,alphafe):
     # Interpolate between grid points
 
     interp_grid_points = np.array([float(teff),float(logg),float(feh),float(alphafe)])
-    interp_data_points = np.zeros((len(cutvalues[0,:])))
+    interp_data_points = np.zeros((len(cutvalues),len(cutvalues[0])))
+    cutvalues=cutvalues.tolist()
 
-    values=cutvalues[:,0]
     interpfn = interpolate.griddata(cutparams,cutvalues,interp_grid_points, method='linear', rescale=True)
     df = pd.DataFrame(interpfn)
     modeldata = df.interpolate().to_numpy()
@@ -5444,7 +5451,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
 
     # Main routine
     errmsg=""
-    version="1.1.dev.20241021"
+    version="1.1.dev.20241206"
     try:
         startmain = datetime.now() # time object
         globaltime=startmain
@@ -5822,8 +5829,13 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
         print ("Entering main loop")
     if (handler != None):
         handler.submit_status(task_id, "processing", { "stage": 2, "stages": 4, "status": f"Starting to process {len(sourcedata)} source{'s' if len(sourcedata) > 1 else ''}", "progress": 3 / total_steps, "step": 3, "totalSteps": total_steps })
-    if (speedtest):
-        print ("Main routine to main loop:",datetime.now()-startmain,"s")
+    if (verbosity>=20 or speedtest):
+        try:
+            now = datetime.now() # time object
+            elapsed = float(now.strftime("%s.%f"))-float(startmain.strftime("%s.%f"))
+            print ("Took",elapsed,"seconds to enter main object loop [",startmain,"] [",now,"]")
+        except:
+            pass
     if (usepreviousrun>=5):
         if (verbosity>=20):
             print ("Using existing fits")
@@ -6367,6 +6379,13 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
         if (speedtest):
             print ("Finished source:",datetime.now()-startsource,"s")
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if (verbosity>=20 or speedtest):
+        try:
+            now = datetime.now() # time object
+            elapsed = float(now.strftime("%s.%f"))-float(startmain.strftime("%s.%f"))
+            print ("Took",elapsed,"seconds to complete main object loop [",startmain,"] [",now,"]")
+        except:
+            pass
 
     # -------------------------------------------
     # Re-save ancillary data including fitted parameters
