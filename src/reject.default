@@ -137,9 +137,9 @@ IPHAS	ha	saturated	-1	=	1	Mask	Same	Same
 #SDSS7	gmag	mag	-1	d<	-1.0	Mask	Hipparcos	Hpmag
 #SDSS7	rmag	mag	-1	d<	0.0	Mask	Hipparcos	Hpmag
 #SDSS7	imag	mag	-1	d<	0.0	Mask	Hipparcos	Hpmag
-SDSS16	gpmag	mag	-1	d<	-1.0	Mask	Hipparcos	Hpmag
-SDSS16	rpmag	mag	-1	d<	0.0	Mask	Hipparcos	Hpmag
-SDSS16	ipmag	mag	-1	d<	0.0	Mask	Hipparcos	Hpmag
+SDSS16	gmag	mag	-1	d<	-1.0	Mask	Hipparcos	Hpmag
+SDSS16	rmag	mag	-1	d<	0.0	Mask	Hipparcos	Hpmag
+SDSS16	imag	mag	-1	d<	0.0	Mask	Hipparcos	Hpmag
 # (v-ix) APASS B magnitudes 9.95 < APASS < 10.xx mag not removed
 # (ix) APASS i-band data limited by itself, not by r-band; (v-ix):
 APASS	Bmag	mag	-1	d<	-0.2	Mask	Tycho	BTmag
@@ -179,33 +179,33 @@ VVV	Ksmag3	mag	-1	d<	-0.7	Mask	2MASS	Kmag
 #SDSS7	rmag	mag	-1	<	9.95	Mask	APASS	r_mag
 #SDSS7	imag	mag	-1	<	9.95	Mask	APASS	i_mag
 #SDSS7	zmag	mag	-1	<	9.95	Mask	APASS	i_mag
-SDSS16	gpmag	mag	-1	<	9.95	Mask	APASS	g_mag
-SDSS16	rpmag	mag	-1	<	9.95	Mask	APASS	r_mag
-SDSS16	ipmag	mag	-1	<	9.95	Mask	APASS	i_mag
-SDSS16	zpmag	mag	-1	<	9.95	Mask	APASS	i_mag
+SDSS16	gmag	mag	-1	<	9.95	Mask	APASS	g_mag
+SDSS16	rmag	mag	-1	<	9.95	Mask	APASS	r_mag
+SDSS16	imag	mag	-1	<	9.95	Mask	APASS	i_mag
+SDSS16	zmag	mag	-1	<	9.95	Mask	APASS	i_mag
 # Lose SDSS if brighter Tycho target
 #SDSS7	gmag	mag	-1	d<	-0.2	Mask	Tycho	BTmag
 #SDSS7	rmag	mag	-1	d<	-0.2	Mask	Tycho	VTmag
 #SDSS7	imag	mag	-1	d<	-0.2	Mask	Tycho	VTmag
-SDSS16	gpmag	mag	-1	d<	-0.2	Mask	Tycho	BTmag
-SDSS16	rpmag	mag	-1	d<	-0.2	Mask	Tycho	VTmag
-SDSS16	ipmag	mag	-1	d<	-0.2	Mask	Tycho	VTmag
+SDSS16	gmag	mag	-1	d<	-0.2	Mask	Tycho	BTmag
+SDSS16	rmag	mag	-1	d<	-0.2	Mask	Tycho	VTmag
+SDSS16	imag	mag	-1	d<	-0.2	Mask	Tycho	VTmag
 # Lose SDSS if brighter Gaia target
 #SDSS7	gmag	mag	-1	d<	-1.0	Mask	Gaia	Gmag
 #SDSS7	rmag	mag	-1	d<	-1.0	Mask	Gaia	Gmag
 #SDSS7	imag	mag	-1	d<	-2.0	Mask	Gaia	RPmag
-SDSS16	gpmag	mag	-1	d<	-1.0	Mask	Gaia	Gmag
-SDSS16	rpmag	mag	-1	d<	-1.0	Mask	Gaia	Gmag
-SDSS16	ipmag	mag	-1	d<	-2.0	Mask	Gaia	RPmag
+SDSS16	gmag	mag	-1	d<	-1.0	Mask	Gaia	Gmag
+SDSS16	rmag	mag	-1	d<	-1.0	Mask	Gaia	Gmag
+SDSS16	imag	mag	-1	d<	-2.0	Mask	Gaia	RPmag
 # Lose SDSS if brighter PanStarrs target
 #SDSS7	gmag	mag	-1	d<	-0.5	Mask	PanStarrs	gmag
 #SDSS7	rmag	mag	-1	d<	-0.5	Mask	PanStarrs	rmag
 #SDSS7	imag	mag	-1	d<	-0.5	Mask	PanStarrs	imag
 #SDSS7	zmag	mag	-1	d<	-0.5	Mask	PanStarrs	zmag
-SDSS16	gpmag	mag	-1	d<	-0.5	Mask	PanStarrs	gmag
-SDSS16	rpmag	mag	-1	d<	-0.5	Mask	PanStarrs	rmag
-SDSS16	ipmag	mag	-1	d<	-0.5	Mask	PanStarrs	imag
-SDSS16	zpmag	mag	-1	d<	-0.5	Mask	PanStarrs	zmag
+SDSS16	gmag	mag	-1	d<	-0.5	Mask	PanStarrs	gmag
+SDSS16	rmag	mag	-1	d<	-0.5	Mask	PanStarrs	rmag
+SDSS16	imag	mag	-1	d<	-0.5	Mask	PanStarrs	imag
+SDSS16	zmag	mag	-1	d<	-0.5	Mask	PanStarrs	zmag
 ## Lose Morel if greatly different from Gaia, Tycho or Hipparcos
 Morel78	U	mag	-1	d>	0.5	Mask	Gaia	BPmag
 Morel78	B	mag	-1	D>	2.0	Mask	Gaia	BPmag

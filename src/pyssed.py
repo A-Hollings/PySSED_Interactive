@@ -1343,12 +1343,12 @@ def get_vizier_single(cmdparams,sourcedata):
                     wavel=float(svodata[svodata['svoname']==svokey]['weff'][0])
                     dw=float(svodata[svodata['svoname']==svokey]['dw'][0])
                     reject_reasons=rejectdata[(rejectdata['catname']==catalogue) & ((rejectdata['filtname']==fdata['filtname']) | (rejectdata['filtname']=="All")) & (rejectdata['rejcat']=="Same") & (rejectdata['rejcol']=="Same")]
-                    if (fdata['dataref']=='Vega'):
+                    if ('Vega' in fdata['dataref']):
                         zpt=float(svodata[svodata['svoname']==svokey]['zpt'][0])
                     elif (fdata['dataref']=='AB'):
                         zpt=3631.
                     else:
-                        print_fail("Filters: Data reference should be Vega or AB but is `"+fdata['dataref']+"'")
+                        print_fail("Filters: Data reference should be Vega, Veganu0, VegaE, Veganu0E or AB but is `"+fdata['dataref']+"'")
                         raise
                     # Flux should be handled within get_mag_flux
                     try:
@@ -1710,6 +1710,7 @@ def get_mag_flux(testdata,fdata,zpt,reasons):
         except TypeError:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore",message="invalid value encountered in log10")
+                warnings.filterwarnings("ignore",message="divide by zero encountered in log10")
                 mag=-2.5*np.log10(flux/zpt)
                 magerr=np.where(ferr>0,2.5*np.log10(1+ferr/flux),0.)
 
@@ -1741,14 +1742,18 @@ def reject_test(reasons,inputdata):
             except:
                 try:
                     testdata=inputdata[reasons[i]['column']][reasons[i]['position']]
-                except:
-                    print_fail("Fail on rejection testing")
-                    print_fail ("Check the following entry in the rejects file:")
-                    print (inputdata)
-                    print (reasons[i])
-                    print (reasons[i]['column'])
-                    print (inputdata[reasons[i]['column']])
-                    print (inputdata[reasons[i]['column']][0])
+                except IndexError:
+                    try:
+                        foo=inputdata[reasons[i]['column']] # Column exists so pass with null test data
+                        testdata=""
+                    except IndexError: # Column does not exist so fail
+                        print_fail("Fail on rejection testing")
+                        print_fail ("Check the following entry in the rejects file:")
+                        print (inputdata)
+                        print (reasons[i])
+                        print (reasons[i]['column'])
+                        print (inputdata[reasons[i]['column']])
+                        raise
         else:
             try:
                 testdata=inputdata[reasons[i]['column']][0]
@@ -2944,7 +2949,7 @@ def compile_areaseds(seds,weights,photdata,ancs,ancweights,ancdata,ra1=0.,ra2=0.
                     wavel=float(svodata[svodata['svoname']==svokey]['weff'][0])
                     dw=float(svodata[svodata['svoname']==svokey]['dw'][0])
                     reject_reasons=rejectdata[(rejectdata['catname']==catalogue) & ((rejectdata['filtname']==fdata['filtname']) | (rejectdata['filtname']=="All")) & (rejectdata['rejcat']=="Same") & (rejectdata['rejcol']=="Same")]
-                    if (fdata['dataref']=='Vega'):
+                    if ('Vega' in fdata['dataref']):
                         zpt=float(svodata[svodata['svoname']==svokey]['zpt'][0])
                     else:
                         zpt=3631.
@@ -4424,7 +4429,7 @@ def globalplots(compiledseds,compiledanc,sourcedata):
                 wavel=ra*0.+float(svodata[svodata['svoname']==svokey]['weff'][0])
                 dw=float(svodata[svodata['svoname']==svokey]['dw'][0])
                 reject_reasons=rejectdata[(rejectdata['catname']==cat) & ((rejectdata['filtname']==fdata['filtname']) | (rejectdata['filtname']=="All")) & (rejectdata['rejcat']=="Same") & (rejectdata['rejcol']=="Same")]
-                if (fdata['dataref']=='Vega'):
+                if ('Vega' in fdata['dataref']=='Vega'):
                     zpt=float(svodata[svodata['svoname']==svokey]['zpt'][0])
                 else:
                     zpt=3631.
@@ -5160,7 +5165,7 @@ def excesslumplot(plotfile,compiledseds,compiledanc,teff):
                 axs[v,w].text(0.03,0.97,(filts[v*yf+w].split("/"))[1]+" ("+str(npoints)+")", ha='left', va='top', fontsize=5, transform=axs[v,w].transAxes)
                 ptsize=np.maximum(20./np.sqrt(npoints),1)
             # Having to manually set y-axis limits on some plots for unknown reasons
-            #axs[v,w].set_ylim(ymin=-5,ymax=4)
+            axs[v,w].set_ylim(ymin=-5,ymax=4)
             # Fudge to trigger ylim setting
             #axs[v,w].scatter(1,-3,s=0,c="#FFFFFF00",cmap=newcmp,edgecolors='none',vmin=tmin,vmax=tmax)
             axs[v,w].scatter(1,-3,s=0,c="#FFFFFF00",edgecolors='none')
@@ -5451,7 +5456,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
 
     # Main routine
     errmsg=""
-    version="1.1.dev.20241206"
+    version="1.1.dev.20250129"
     try:
         startmain = datetime.now() # time object
         globaltime=startmain
@@ -5559,7 +5564,7 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
             if (savemasteroutput>0):
                 # Write the master output file headers
                 with open(outmasterfile, "w") as f:
-                    f.write("#PySSED output version"+version+"\n")                
+                    f.write("#PySSED output version "+version+"\n")                
                     try:
                         f.write("#Created"+datetime.now()+"\n") # time object
                     except:
@@ -5745,13 +5750,12 @@ def pyssed(cmdtype,cmdparams,proctype,procparams,setupfile,handler,total_sources
                 masteroutputalamb=np.concatenate((np.array(["#Alambda"],dtype="str"),np.full(len(masterlist)*2,"-"),np.full(len(fittedlist)*2,"-"),np.full(len(adoptedlist)*2,"-"),np.full(len(statlist),"-"),np.full(len(catlist),"-"),filtalamb,filtalamb,filtalamb,filtalamb,np.full(len(ancillarylist)*3,"-")))
                 # Write the master output file headers
                 with open(outmasterfile, "a") as f:
-                    f.write("#PySSED output version"+version+"\n")                
-                    try:
-                        f.write("#Created"+datetime.now()+"\n") # time object
-                    except:
-                        pass
-                    f.write("#Input: "+' '.join(str(x) for x in cmdargs)+"\n")
-                    #YYY
+                    #f.write("#PySSED output version"+version+"\n")                
+                    #try:
+                    #    f.write("#Created"+datetime.now()+"\n") # time object
+                    #except:
+                    #    pass
+                    #f.write("#Input: "+' '.join(str(x) for x in cmdargs)+"\n")
                     #			RA, Dec (extracted from input catalogue)
                     #			PMRA, PMDec (extracted from input catalogue, additional parameters can be given)
                     #			Parallax [mas] <-> Distance [pc] (used interchangeably)
