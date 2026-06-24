@@ -23,7 +23,7 @@ FilterFile	filters.default
 # Default error (as fraction of flux) to assign when error column = None
 # (Now used only as a backup in case of failure)
 # (error for None is now taken as MaxPErr in filters setup file)
-DefaultError	0.3
+DefaultError	0.1
 
 # Minimum error (as fraction of flux) assumed when merging photometry in the same filter
 # Improves weighting when dealing with overly precise magnitudes
@@ -267,7 +267,9 @@ HRDMaxTemp	20000.
 HRDMinLum	0.00001
 HRDMaxLum	1000000.
 
-MakeXSPlots	1
+MakeHRInteractive	1
+
+MakeXSPlots	0
 LumXSPlotFile	../output/xs-lum.png
 XSSpacePlotFile	../output/xs-space.png
 XSCorrnPlotFile	../output/xs-correlation.png

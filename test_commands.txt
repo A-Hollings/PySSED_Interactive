@@ -1,0 +1,2 @@
+python3 pyssed.py single Betelgeuse simple
+python3 pyssed.py cone 214.5776 52.68006 0.03 simple
