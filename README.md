@@ -42,7 +42,7 @@ cd src/
 python3 pyssed.py single "Betelgeuse" simple setup.ness
 ```
 
-The interactive visualisation runs as part of the standard pipeline and outputs a self-contained `interactive_hr.html` file to the output directory, which can be opened directly in any browser — no server or persistent process required.
+The interactive visualisation runs as part of the standard pipeline and outputs a self-contained `Interactive_HR_Diagram.html` file to the output directory, which can be opened directly in any browser — no server or persistent process required.
 
 Full installation instructions and filter configuration details can be found in `doc/Pyssed_manual.pdf`.
 
